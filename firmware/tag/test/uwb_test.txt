@@ -1,0 +1,73 @@
+#include <SPI.h>
+#include <DW1000.h>
+
+#define SPI_SCK 36
+#define SPI_MISO 37
+#define SPI_MOSI 35
+#define EN_UWB   7;
+
+const uint8_t PIN_RST = 38; // reset pin
+const uint8_t PIN_IRQ = 33; // irq pin
+const uint8_t PIN_SS = 34;   // spi select pin
+
+
+volatile boolean sent = false;
+
+void handleSent() {
+  // Callback ini HANYA dipanggil jika IRQ pin naik (RISING)
+  sent = true;
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+
+  pinMode(EN_UWB, OUTPUT);
+  digitalWrite(EN_UWB, HIGH);
+  delay(100);
+  
+  // Init DW1000
+  SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI);
+  DW1000.begin(PIN_IRQ, PIN_RST);
+  DW1000.select(PIN_SS);
+  
+  // Reset Config
+  DW1000.newConfiguration();
+  DW1000.setDefaults();
+  DW1000.setDeviceAddress(1);
+  DW1000.setNetworkId(10);
+  DW1000.commitConfiguration();
+  
+  // Pasang Interrupt
+  DW1000.attachSentHandler(handleSent);
+  
+  Serial.println("Sender Ready. ID: ");
+  char msg[64];
+  DW1000.getPrintableDeviceIdentifier(msg);
+  Serial.println(msg);
+}
+
+void loop() {
+  Serial.print("Sending... ");
+  DW1000.newTransmit();
+  DW1000.setDefaults();
+  String data = "HELLO";
+  DW1000.setData(data);
+  DW1000.startTransmit();
+  
+  // Tunggu sampai interrupt 'handleSent' mengubah variabel 'sent'
+  // Timeout 1 detik jika IRQ macet
+  unsigned long start = millis();
+  while (!sent && millis() - start < 1000) { yield(); }
+  
+  if (sent) {
+    Serial.println("TX Done! (IRQ OK)");
+    sent = false;
+  } else {
+    Serial.println("TIMEOUT! (IRQ Failed / DW1000 Stuck)");
+    // Coba baca status register untuk debug
+    // Serial.println(DW1000.getPrettyBytes(SYS_STATUS, 0, msg, 5)); 
+  }
+  
+  delay(1000);
+}

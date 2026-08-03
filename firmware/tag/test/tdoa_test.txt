@@ -1,0 +1,106 @@
+#include <SPI.h>
+#include <DW1000.h>
+
+// --- KONFIGURASI TAG ---
+const uint8_t TAG_ID = 1;         
+const int BLINK_RATE_HZ = 1;      
+// -----------------------
+
+// Pin
+const uint8_t PIN_RST = 4;
+const uint8_t PIN_IRQ = 17;
+const uint8_t PIN_SS  = 16;
+
+// Flag Konfirmasi Kirim (Wajib volatile karena diakses interrupt)
+volatile boolean sent = false;
+
+// Callback: Dipanggil otomatis HANYA jika chip melapor "Selesai Kirim" via pin IRQ
+void handleSent() {
+  sent = true;
+}
+
+// Struktur Pesan (6 Byte)
+struct BlinkPacket {
+  uint8_t frameType; 
+  uint8_t tagId;     
+  uint32_t seq;      
+};
+
+BlinkPacket packet;
+uint32_t sequenceNumber = 0;
+
+void transmitBlink() {
+  // Reset flag sebelum mulai perintah kirim
+  sent = false; 
+  
+  DW1000.newTransmit();
+  DW1000.setDefaults();
+  
+  // Isi Paket
+  packet.frameType = 0xA0;
+  packet.tagId = TAG_ID;
+  packet.seq = sequenceNumber++;
+  
+  DW1000.setData((byte*)&packet, sizeof(packet));
+  
+  // Perintahkan kirim
+  DW1000.startTransmit();
+  
+  // --- STRICT WAIT LOOP (Deteksi Error Ketat) ---
+  // Kita tunggu respon hardware maksimal 1 detik.
+  // Jika modul Anda putus koneksi di tengah jalan, loop ini akan timeout.
+  unsigned long start = millis();
+  while (!sent && millis() - start < 1000) {
+    yield(); // Mencegah ESP32 crash (Watchdog)
+  }
+  
+  // Analisis Hasil
+  if (sent) {
+    Serial.print("Blink #"); 
+    Serial.print(packet.seq);
+    Serial.println(" -> OK (Terkonfirmasi IRQ)");
+  } else {
+    // Jika masuk ke sini, berarti modul "bisu" atau kabel IRQ bermasalah
+    Serial.print("Blink #"); 
+    Serial.print(packet.seq);
+    Serial.println(" -> GAGAL/TIMEOUT! (Cek Kabel/Modul)");
+    
+    // Opsional: Lakukan soft reset jika modul macet
+    // DW1000.reset(); 
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000); 
+  
+  // 1. Init Hardware & Hard Reset
+  SPI.begin(18, 19, 23);
+  pinMode(PIN_RST, OUTPUT);
+  digitalWrite(PIN_RST, LOW); delay(50);
+  digitalWrite(PIN_RST, HIGH); delay(500);
+
+  DW1000.begin(PIN_IRQ, PIN_RST);
+  DW1000.select(PIN_SS);
+  
+  // 2. Konfigurasi
+  DW1000.newConfiguration();
+  DW1000.setDefaults();
+  DW1000.setDeviceAddress(TAG_ID);
+  DW1000.setNetworkId(10);
+  DW1000.enableMode(DW1000.MODE_LONGDATA_RANGE_LOWPOWER);
+  DW1000.commitConfiguration();
+  
+  // 3. Pasang Interrupt Handler (INI KUNCINYA)
+  // Tanpa ini, kita buta apakah data terkirim atau tidak
+  DW1000.attachSentHandler(handleSent);
+  
+  Serial.println("### TAG READY - STRICT MODE ###");
+}
+
+void loop() {
+  transmitBlink();
+  
+  int delayTime = 1000 / BLINK_RATE_HZ;
+  delay(delayTime);
+}
