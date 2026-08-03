@@ -1,0 +1,110 @@
+#include <Arduino.h>
+#include <SPI.h>
+
+// --- PIN DEFINITION (Sesuaikan dengan wiring Anda) ---
+const int SCK_PIN  = 14;
+const int MISO_PIN = 12;
+const int MOSI_PIN = 13;
+const int CS_PIN   = 15;
+const int DWM_EN   = 25;
+
+// --- KONSTANTA DARI DW1000Constants.h ---
+#define DEV_ID      0x00
+#define LEN_DEV_ID  4
+
+// --- PENGATURAN SPI (Sesuai Library DW1000) ---
+// Speed: 16MHz (Gunakan 20MHz jika pakai ESP32-S3)
+// Bit Order: MSBFIRST
+// Mode: SPI_MODE0
+const long SPI_FREQ = 16000000L; 
+SPISettings dw1000Settings(SPI_FREQ, MSBFIRST, SPI_MODE0);
+
+void setup() {
+  Serial.begin(115200);
+  delay(2000); // Beri waktu serial monitor connect
+
+  Serial.println("=== DWM1000 SPI DIAGNOSTIC TEST ===");
+  Serial.print("SCK: "); Serial.println(SCK_PIN);
+  Serial.print("MISO: "); Serial.println(MISO_PIN);
+  Serial.print("MOSI: "); Serial.println(MOSI_PIN);
+  Serial.print("CS: "); Serial.println(CS_PIN);
+  Serial.println("===================================");
+
+  pinMode(DWM_EN, OUTPUT);
+  digitalWrite(DWM_EN, HIGH);
+
+  // 1. Setup CS Pin Manual
+  pinMode(CS_PIN, OUTPUT);
+  digitalWrite(CS_PIN, HIGH); // Deselect (Idle)
+
+  // 2. Inisialisasi SPI
+  SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, CS_PIN);
+  
+  // Opsional: Reset DWM1000 jika pin RST terhubung
+  // int RST_PIN = 26; 
+  // pinMode(RST_PIN, OUTPUT); digitalWrite(RST_PIN, LOW); delay(10);
+  // pinMode(RST_PIN, INPUT); delay(500); 
+}
+
+void loop() {
+  byte dataBuffer[LEN_DEV_ID];
+  uint32_t receivedID = 0;
+
+  // --- MEMULAI TRANSAKSI SPI ---
+  // Ini meniru fungsi readBytes() pada DW1000.cpp
+  
+  SPI.beginTransaction(dw1000Settings); // Kunci bus SPI dengan settingan DWM1000
+  
+  digitalWrite(CS_PIN, LOW); // Select Slave
+
+  // Kirim Header
+  // Sesuai datasheet: Bit-7 (Write/Read) = 0 untuk Read.
+  // Address DEV_ID = 0x00.
+  // Maka byte yang dikirim: 0x00.
+  SPI.transfer(DEV_ID); 
+
+  // Baca Data (4 Byte)
+  // Kirim dummy byte (0x00) untuk menggeser data keluar dari DWM1000
+  for (int i = 0; i < LEN_DEV_ID; i++) {
+    dataBuffer[i] = SPI.transfer(0x00);
+  }
+
+  digitalWrite(CS_PIN, HIGH); // Deselect Slave
+  
+  SPI.endTransaction(); // Lepas bus SPI
+
+  // --- SELESAI TRANSAKSI ---
+
+  // Konversi Array Byte ke Long (Little Endian)
+  // DWM1000 mengirim LSB dulu: [0x30, 0x01, 0xCA, 0xDE]
+  receivedID = ((uint32_t)dataBuffer[3] << 24) | 
+               ((uint32_t)dataBuffer[2] << 16) | 
+               ((uint32_t)dataBuffer[1] << 8)  | 
+               dataBuffer[0];
+
+  // Tampilkan Hasil Raw Bytes
+  Serial.print("Raw Bytes Received: ");
+  for (int i = 0; i < LEN_DEV_ID; i++) {
+    Serial.print("0x");
+    if (dataBuffer[i] < 0x10) Serial.print("0");
+    Serial.print(dataBuffer[i], HEX);
+    if (i < LEN_DEV_ID - 1) Serial.print(", ");
+  }
+  
+  Serial.print("\t -> Combined HEX: 0x");
+  Serial.println(receivedID, HEX);
+
+  // Analisis Hasil
+  if (receivedID == 0xDECA0130) {
+    Serial.println("[SUCCESS] Koneksi SPI Berhasil! Modul terdeteksi.");
+  } else if (receivedID == 0xFFFFFFFF) {
+    Serial.println("[FAILED] Menerima 0xFF. Kemungkinan: Pin MISO putus, Pin CS tidak connect, atau Modul mati.");
+  } else if (receivedID == 0x00000000) {
+    Serial.println("[FAILED] Menerima 0x00. Kemungkinan: Pin MOSI/SCK putus atau Short ke Ground.");
+  } else {
+    Serial.println("[WARNING] Data diterima tapi ID tidak sesuai. Cek kualitas kabel atau noise.");
+  }
+
+  Serial.println("-----------------------------------");
+  delay(1000);
+}
