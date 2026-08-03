@@ -1,0 +1,13 @@
+Output: NC Drill Files
+Type  : NC Drill
+From  : Project [Anchor.PrjPcb]
+   Generated File[Anchor-RoundHoles.TXT]
+   Generated File[Anchor-SlotHoles.TXT]
+   Generated File[Anchor.LDP]
+   Generated File[Anchor.DRR]
+
+
+Files Generated   : 4
+Documents Printed : 0
+
+Finished Output Generation At 11:11:06 AM On 3/5/2026
