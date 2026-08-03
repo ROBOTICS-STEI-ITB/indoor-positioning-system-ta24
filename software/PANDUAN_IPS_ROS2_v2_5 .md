@@ -1,5 +1,5 @@
 # Panduan Lengkap — IPS ROS2 Indoor Positioning System
-**TA Karei | ITB Teknik Elektro | UWB TDoA 3D**
+**TA24 | ITB Teknik Elektro | UWB TDoA 3D**
 **Versi dokumen: v2.5.0 — + optitrack_bridge GT marker tag (param source/gt_marker_idx/input_units) + fix entry point setup.py ips_nodes + setelan NatNet Motive + flag verifikasi (indeks marker, konstanta transform). [Basis v2.4.0: state_aggregator v3.3 /state/json + orientasi opsi A + demo offline + bias_compensator v2 affine + analyze_latency.py]**
 
 ---
