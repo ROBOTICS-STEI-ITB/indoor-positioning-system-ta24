@@ -1,0 +1,59 @@
+#include <SPI.h>
+#include <DW1000.h>
+
+#define EN_UWB 25
+#define SPI_SCK 14
+#define SPI_MISO 12
+#define SPI_MOSI 13
+//#define DW_CS 15
+
+
+const uint8_t PIN_RST =26; // reset pin
+const uint8_t PIN_IRQ = 27; // irq pin
+const uint8_t PIN_SS = 15;   // spi select pin
+
+volatile boolean received = false;
+
+void handleReceived() {
+  received = true;
+}
+
+void setup() {
+  pinMode(EN_UWB, OUTPUT);
+  digitalWrite(EN_UWB, HIGH);
+  delay(100);
+
+  Serial.begin(115200);
+  delay(1000);
+  
+  SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI);
+  DW1000.begin(PIN_IRQ, PIN_RST);
+  DW1000.select(PIN_SS);
+  
+  DW1000.newConfiguration();
+  DW1000.setDefaults();
+  DW1000.setDeviceAddress(2);
+  DW1000.setNetworkId(10);
+  DW1000.commitConfiguration();
+  
+  DW1000.attachReceivedHandler(handleReceived);
+  
+  // Mulai mode penerima
+  DW1000.newReceive();
+  DW1000.setDefaults();
+  DW1000.receivePermanently(true);
+  DW1000.startReceive();
+  
+  Serial.println("Receiver Ready.");
+}
+
+void loop() {
+  if (received) {
+    received = false;
+    Serial.println("Received Something!");
+    // Opsional: Baca datanya
+    String data;
+    DW1000.getData(data);
+    Serial.print("Data: "); Serial.println(data);
+  }
+}
