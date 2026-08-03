@@ -1,0 +1,14 @@
+# Per-anchor antenna delay calibration (signed DTU).
+antenna_delays:
+  - id: 1
+    tx_delay_dtu: 0
+    rx_delay_dtu: 0
+  - id: 2
+    tx_delay_dtu: 0
+    rx_delay_dtu: 0
+  - id: 3
+    tx_delay_dtu: 0
+    rx_delay_dtu: 0
+  - id: 4
+    tx_delay_dtu: 0
+    rx_delay_dtu: 0

@@ -1,0 +1,27 @@
+# Anchor positions in world frame (meters).
+anchors:
+  - id: 1
+    name: MC
+    x: 0.0
+    y: 1.00
+    z: 2.25
+  - id: 2
+    name: MA
+    x: 0.0
+    y: 0.0
+    z: 0.26
+  - id: 3
+    name: SA3
+    x: 2.00
+    y: 0.0
+    z: 3.0
+  - id: 4
+    name: SA4
+    x: 0.0
+    y: 2.00
+    z: 3.0
+  - id: 5
+    name: SA5
+    x: 2.00
+    y: 2.00
+    z: 0.845

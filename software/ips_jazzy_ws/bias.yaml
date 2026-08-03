@@ -1,0 +1,14 @@
+# bias.yaml v2 -- model affine. Dihasilkan fit_bias_affine.py
+bias_model: affine
+bias_matrix:
+  - [0.824931, -0.050921, 0.059864]
+  - [-0.080497, 0.797736, 0.051738]
+  - [0.119683, 0.066202, 0.929417]
+bias_offset:
+  x: 0.075798
+  y: 0.243261
+  z: 0.312532
+calibration_points: 15
+rmse_before_m: 0.681934
+rmse_after_m: 0.360265
+timestamp: 2026-06-23T10:44:28

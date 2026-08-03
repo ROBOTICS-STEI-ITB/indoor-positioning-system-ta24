@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>ips_nodes_cpp</name>
+  <version>0.2.0</version>
+  <description>
+    C++ implementations of compute-heavy ROS2 nodes for the UWB IPS
+    system. Replaces Python clock_sync, position_solver, and
+    bias_compensator with high-performance C++ versions.
+  </description>
+  <maintainer email="karei@todo.local">Karei</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>builtin_interfaces</depend>
+  <depend>ips_msgs</depend>
+  <depend>eigen</depend>
+  <depend>yaml-cpp</depend>
+
+  <test_depend>ament_cmake_gtest</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

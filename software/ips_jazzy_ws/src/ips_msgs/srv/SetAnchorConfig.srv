@@ -1,0 +1,6 @@
+# SetAnchorConfig.srv
+uint8[] anchor_ids
+geometry_msgs/PoseArray anchor_poses
+---
+bool success
+string message

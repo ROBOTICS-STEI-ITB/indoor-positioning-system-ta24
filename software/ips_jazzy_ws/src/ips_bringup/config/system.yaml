@@ -1,0 +1,179 @@
+udp_gateway:
+  ros__parameters:
+    udp_port: 5555
+    udp_bind_address: "0.0.0.0"
+    socket_buffer_bytes: 1048576
+    print_stats_every_s: 5.0
+
+clock_sync:
+  ros__parameters:
+    status_period_s: 1.0
+    kf_enabled: true
+    write_debug_csv: false
+
+position_solver:
+  ros__parameters:
+    # ----- Layer 1 (Predictive TDoA Gate) -----
+    layer1_enabled: true
+    layer1_sigma_tdoa_m: 0.10
+    layer1_huber_k: 2.5
+    layer1_warmup: 20
+    layer1_log_every_s: 5.0
+    # ----- Layer 2 (Gated Student-t innovation gate) -----
+    # gate_threshold = chi-squared(dim=3) inverse-CDF at probability p
+    #   p=0.95  -> 7.815
+    #   p=0.99  -> 11.345  (default)
+    #   p=0.999 -> 16.266
+    layer2_enabled: false
+    layer2_gate_threshold: 11.345
+    layer2_log_every_s: 5.0
+    frame_id: "world"
+    use_kalman_filter: true
+    blink_buffer_size: 64
+    blink_publish_timeout_s: 0.5
+    rx_anchors_ordered: [2, 3, 4, 5]
+
+    # Antenna bias (dari self_calibrate.py)
+    bias_anchor_ids: [2, 3, 4, 5]
+    bias_values_ns: [0.0, -8.366, 1.641, -8.663]
+
+    # KF tuning
+    sigma_a: 0.2
+    sigma_t_tdoa: 3.5e-10 
+    pos_nominal: [1.00, 1.00, 1.75]   
+    room_dim: [2.00, 2.00, 3.5]
+    dt_nominal_s: 0.20
+
+    # KF type: "standard" (Gaussian KF) or "student_t" (robust)
+    kf_type: "student_t"
+    stf_eta0: 5.0
+    stf_alpha_max: 3.0
+
+    # DZS asymmetric + G1 pre-filter
+    dzs_enabled: false
+    dzs_window: 100
+    dzs_k_pos: 2.5
+    dzs_k_neg: 3.5
+    dzs_mad_min_m: 0.03
+    dzs_warmup: 20
+    dzs_log_every_s: 5.0
+    g1_enabled: true
+    g1_margin: 1.5
+
+    # Hybrid calibration
+    hybrid_calib_enabled: false
+    hybrid_gt_pos: [1.5, 1.00, 1.15]
+    mc_pos: [1.50, 0.0, 2.25]
+    hybrid_samples: 100
+    ccp_calib_period_s: 30.0
+    
+wolf_position:
+  ros__parameters:
+    # ===== I/O (mirrors position_solver) =====
+    frame_id: "world"
+    blink_buffer_size: 64
+    blink_publish_timeout_s: 0.5
+    rx_anchors_ordered: [2, 3, 4, 5]
+    pos_nominal: [1.00, 1.00, 1.75]   
+    room_dim: [2.00, 2.00, 3.5]
+    dt_nominal_s: 0.20
+
+    # Antenna bias (sama dengan position_solver)
+    bias_anchor_ids: [2, 3, 4, 5]
+    bias_values_ns: [0.0, -0.435, 3.260, -1.372]
+
+    # ===== WoLF-EKF-CA tuning =====
+    # σ_tdoa: measurement noise (meter)
+    wolf_sigma_tdoa: 0.08
+    # σ_a adaptive: σ_a_eff = σ_a_min + σ_a_gain · ‖v‖
+    # → small process noise when stationary (tight precision)
+    # → larger when moving (responsive to maneuver)
+    # BASELINE v0.3.0 (hasil eksperimen Jalur B vs OptiTrack — terbaik & stabil):
+    #   σ_a_min=0.005, σ_tdoa=0.08, c=0.3, gain=1.0
+    #   (σ_a_min=0.001 MELEDAK 1/2 sesi; σ_tdoa=0.12 jitter naik — jangan dipakai)
+    wolf_sigma_a_min:  0.005
+    wolf_sigma_a_gain: 1.0
+    wolf_sigma_a_max:  3.0    # CAP sigma_a_eff (anti-ledakan manuver); 0=nonaktif
+    # WoLF IMQ soft threshold (Eq. 17 Duran-Martin et al. 2024).
+    wolf_c: 0.3
+    # Initial covariance diagonals (std meter / m·s⁻¹ / m·s⁻²)
+    # v0.2.0: pos_std0 dibuat besar (1.5m) sehingga EKF dapat menarik state
+    # ke posisi sebenarnya dari init pos_nominal_ yang mungkin jauh dari GT.
+    # vel/acc kecil asumsi takeoff dari diam.
+    wolf_pos_std0: 1.5
+    wolf_vel_std0: 0.1
+    wolf_acc_std0: 0.1
+    # Status log throttle (s)
+    wolf_log_every_s: 5.0
+
+    # ===== Zero-Velocity Hold (ZUPT) — v0.3.0 =====
+    # Post-filter pada OUTPUT posisi (state EKF tidak disentuh). Tekan jitter
+    # hover (~38mm) → <15mm saat diam; passthrough saat bergerak.
+    # zupt_enabled: false = passthrough = perilaku identik v0.2.0 (untuk A/B test).
+    zupt_enabled: true
+    # Gerbang masuk HOLD: ‖v̂‖ < v_enter DAN spread jendela < spread_enter,
+    # bertahan n_enter sampel. Keluar HOLD: ‖v̂‖ > v_exit (histeresis).
+    zupt_v_enter: 0.30          # m/s
+    zupt_v_exit:  0.45          # m/s (> v_enter; keluar responsif agar gerak tidak telat)
+    zupt_spread_enter: 0.08     # m; RMS std posisi jendela = √(σx²+σy²+σz²)
+    zupt_window_s: 1.0          # s; panjang jendela deteksi
+    zupt_n_enter: 10            # sampel berturut sebelum HOLD (~0.5s @21Hz)
+    zupt_hold_mode: "ema"       # "ema" (cutoff rendah) atau "median"
+    zupt_hold_cutoff_hz: 0.1    # Hz; cutoff EMA saat HOLD (dipakai bila mode=ema)
+    zupt_ramp_s: 0.3            # s; durasi blend masuk/keluar (anti-loncatan)
+    zupt_log_every_s: 5.0
+
+state_aggregator:
+  ros__parameters:
+    display_mode: "refresh"   # atau "refresh" untuk tampilan refresh
+    output_rate_hz: 10.0
+    log_file_path: ""
+    print_to_stdout: true
+    pretty_json: true
+    enable_imu_fields: true
+
+recorder:
+  ros__parameters:
+    base_dir: "~/ips_logs"
+    auto_start_raw: false
+
+bias_compensator:
+  ros__parameters:
+    # Auto-load / save bias from this YAML on startup / after calibration.
+    # Empty string disables persistence.
+    bias_yaml_path: ""        # overridden by launch arg `bias_yaml`
+    auto_load: true
+    auto_save: true
+    n_samples_default: 300
+    skip_warmup_default: 30
+    robust: true              # use median (true) or mean (false)
+    log_status_every_s: 5.0
+    calibration_timeout_s: 60.0
+
+imu_processor:
+  ros__parameters:
+    frame_id: "tag_imu"
+    # --- Gyro filter: raw -> [LPF] -> [Kalman] ---
+    gyro_apply_lpf: true          # EMA low-pass
+    gyro_lpf_alpha: 0.05           # kecil = smoothing kuat (read_UDP.py: 0.05)
+    gyro_apply_kalman: true       # Kalman 1D skalar
+    gyro_kf_q: 0.0005              # process noise (read_UDP.py)
+    gyro_kf_r: 0.05                # measurement noise
+    # --- Accel filter: raw -> [LPF] -> [Kalman] ---
+    accel_apply_lpf: true
+    accel_lpf_alpha: 0.05
+    accel_apply_kalman: true
+    accel_kf_q: 0.0005
+    accel_kf_r: 0.05
+
+differentiator:
+  ros__parameters:
+    min_dt_s: 0.0001
+    max_dt_s: 1.0
+    enable_angular: true          # true → hitung /state/angular_acceleration
+    # --- Metode turunan ---
+    deriv_method: "savgol"         # "savgol" (halus, default) | "backward" (lama)
+    sg_window: 15                  # jendela Savitzky-Golay (read_UDP.py: 15)
+    sg_poly: 3                     # orde polinomial (read_UDP.py: 3)
+    ang_accel_clip: 0.0            # clip |percepatan sudut|; 0 = tanpa clip
+                                   # (read_UDP.py: MAX_ANGULAR_ACCEL=100)

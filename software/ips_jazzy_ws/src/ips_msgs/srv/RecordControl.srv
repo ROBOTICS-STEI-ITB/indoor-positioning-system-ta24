@@ -1,0 +1,9 @@
+# RecordControl.srv
+string action
+string label
+---
+bool   success
+string message
+string filepath
+float64 duration_s
+uint32 rows_written

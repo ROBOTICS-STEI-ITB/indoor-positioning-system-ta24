@@ -1,0 +1,24 @@
+# Calibrate.srv
+# Calibrate static bias offset of the IPS positioning system.
+#
+# Place the tag at a known position (gt_x, gt_y, gt_z), then call this
+# service. The compensator will collect n_samples blink samples (after
+# skipping skip_warmup for filter warmup), compute the median offset,
+# and switch to OPERATIONAL mode — applying the bias to all subsequent
+# /state/position output via /state/position_compensated.
+
+float64 gt_x          # Ground truth X (m)
+float64 gt_y          # Ground truth Y (m)
+float64 gt_z          # Ground truth Z (m)
+uint32 n_samples      # Number of samples (0 = use default 300)
+uint32 skip_warmup    # Samples to skip at start (0 = use default 30)
+---
+bool success          # True if calibration succeeded
+string message        # Status / error message
+float64 bias_x        # Computed bias X (m)
+float64 bias_y        # Computed bias Y (m)
+float64 bias_z        # Computed bias Z (m)
+float64 std_x         # MAD-based std X (m)
+float64 std_y         # MAD-based std Y (m)
+float64 std_z         # MAD-based std Z (m)
+uint32 samples_used   # Number of samples used for bias estimation
